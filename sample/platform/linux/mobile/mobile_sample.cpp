@@ -55,6 +55,7 @@ parseFromMobileCallback(Vehicle* vehicle, RecvContainer recvFrame,
   uint8_t wayptPolygonSides;
   int     hotptInitRadius;
   int     responseTimeout = 1;
+  std::cout << mobile_data_id << std::endl;
 
   switch (mobile_data_id)
   {
@@ -135,6 +136,7 @@ parseFromMobileCallback2(Vehicle* vehicle, RecvContainer recvFrame,
   // First, lets cast the userData to LinuxSetup*
   LinuxSetup* linuxEnvironment = (LinuxSetup*)userData;
   uint16_t    mobile_data_id;
+  DSTATUS("receive recvFrame = %d\n", recvFrame);
   mobile_data_id =
       *(reinterpret_cast<uint16_t*>(&recvFrame.recvData.raw_ack_array));
 

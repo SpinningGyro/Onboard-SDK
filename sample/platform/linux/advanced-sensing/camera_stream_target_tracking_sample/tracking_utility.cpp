@@ -19,7 +19,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
+ 
+#include<opencv2/imgproc/imgproc_c.h>
+#include <opencv2/highgui/highgui_c.h>
 #include "tracking_utility.hpp"
 #include <iostream>
 void TrackingUtility::mouseCallback(int event, int x, int y, int f, void *p)

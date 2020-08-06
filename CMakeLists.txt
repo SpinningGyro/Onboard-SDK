@@ -25,6 +25,7 @@ project(onboardsdk)
 
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 
+set(OpenCV_DIR "/home/nvidia/opencv-4.1.0/build/")
 set(DJIOSDK 0)
 set(DJIOSDK_MINOR_VERSION 1)
 set(DJIOSDK_PATCH_VERSION 0)

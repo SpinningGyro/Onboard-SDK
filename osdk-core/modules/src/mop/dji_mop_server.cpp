@@ -41,11 +41,11 @@ MopErrCode MopServer::accept(PipelineID id, PipelineType type, MopPipeline *&p) 
   int32_t ret;
   mop_channel_handle_t bind_handle;
 
-  /*! 0.Find whether the pipeline object is existed or not */
-  DSTATUS("/*! 0.Find whether the pipeline object is existed or not */");
-  if (pipelineMap.find(id) != pipelineMap.end()) {
-    return MOP_RESOCCUPIED;
-  }
+/*! 0.Find whether the pipeline object is existed or not */ 
+ DSTATUS("/*! 0.Find whether the pipeline object is existed or not */"); 
+ if (pipelineMap.find(id) != pipelineMap.end()) { 
+return MOP_RESOCCUPIED; 
+ } 
 
   /*! 1.Create handler for binding */
   DSTATUS("/*! 1.Create handler for binding */");

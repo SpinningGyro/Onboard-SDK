@@ -66,6 +66,7 @@
 using namespace DJI::OSDK;
 
 #define TEST_OP_PIPELINE_ID 49153
+#define TEST_MO_PIPELINE_ID 20
 #define READ_ONCE_BUFFER_SIZE 100*1024
 #define SEND_ONCE_BUFFER_SIZE 100*1024
 #define TEST_RECV_FILE_NAME "test.mp4"
@@ -268,50 +269,41 @@ static void OPDownloadFileTask(MopPipeline *OP_Pipeline) {
 static void* MopClientTask(void *arg)
 {
   Vehicle *vehicle = (Vehicle *)arg;
-
-  /*! main psdk device init */
-  ErrorCode::ErrorCodeType ret = vehicle->psdkManager->initPSDKModule(
-      PAYLOAD_INDEX_0, "Main_psdk_device");
-  if (ret != ErrorCode::SysCommonErr::Success) {
-    DERROR("Init PSDK module Main_psdk_device failed.");
-    ErrorCode::printErrorCodeMsg(ret);
+  MopPipeline *MO_Pipeline = NULL;
+  if (!vehicle->initMopServer())
+  {
+    DERROR("Failed to initialize MopServer!\n");
   }
-
-  /*! get the mop client */
-  MopClient *mopClient = NULL;
-  ret = vehicle->psdkManager->getMopClient(PAYLOAD_INDEX_0, mopClient);
-  if (ret != ErrorCode::SysCommonErr::Success) {
-    DERROR("Get MOP client object for_psdk_device failed.");
-    ErrorCode::printErrorCodeMsg(ret);
-    return NULL;
-  }
-
-  if (!mopClient) {
-    DERROR("Get MOP client object is a null value.");
-    return NULL;
-  }
-
-  /*! connect pipeline */
-  MopPipeline *OP_Pipeline = NULL;
-  if ((mopClient->connect(TEST_OP_PIPELINE_ID, RELIABLE, OP_Pipeline)
-      != MOP_PASSED) || (OP_Pipeline == NULL)) {
-    DERROR("MOP Pipeline connect failed");
+  if (vehicle->mopServer->accept((PipelineID)TEST_MO_PIPELINE_ID, UNRELIABLE, MO_Pipeline) != MOP_PASSED) {
+    DERROR("MOP Pipeline accept failed");
     return NULL;
   } else {
-    DSTATUS("Connect to mop pipeline id(%d) successfully", TEST_OP_PIPELINE_ID);
+    DSTATUS("Accept to mop pipeline id(%d) successfully", TEST_MO_PIPELINE_ID);
   }
-
-  /*! OSDK upload file to PSDK */
-  OPDownloadFileTask(OP_Pipeline);
-
-  /*! Disconnect pipeline */
-  if (mopClient->disconnect(TEST_OP_PIPELINE_ID) != MOP_PASSED) {
-    DERROR("MOP Pipeline disconnect pipeline(%d) failed", TEST_OP_PIPELINE_ID);
+  
+  MopErrCode mopRet;
+  uint8_t recvBuf[1024];
+  MopPipeline::DataPackType readPack = {recvBuf, 1024};
+  mopRet = MO_Pipeline->recvData(readPack, &readPack.length);
+  ASSERT_MOP_RET(mopRet)
+  
+  FILE *fp = fopen(TEST_RECV_FILE_NAME, "w+");
+  if (fp == NULL) throw std::runtime_error("open file error");
+  fwrite(recvBuf, sizeof(recvBuf), 1024, fp);
+  //printf()
+  
+  
+  
+  if (vehicle->mopServer->close(TEST_MO_PIPELINE_ID) != MOP_PASSED) {
+    DERROR("MOP Pipeline disconnect pipeline(%d) failed", TEST_MO_PIPELINE_ID);
   } else {
-    DSTATUS("Disconnect mop pipeline id(%d) successfully", TEST_OP_PIPELINE_ID);
+    DSTATUS("Disconnect mop pipeline id(%d) successfully", TEST_MO_PIPELINE_ID);
   }
-  sampleFinish = true;
+  
+  
+    sampleFinish = true;
 }
+
 
 int main(int argc, char** argv)
 {
