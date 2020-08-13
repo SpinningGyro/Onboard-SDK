@@ -294,7 +294,9 @@ int main(int argc, char **argv) {
         p->setExposureModeSyncSample(
             PAYLOAD_INDEX_0, CameraModule::ExposureMode::SHUTTER_PRIORITY);
         p->setShutterSpeedSyncSample(
-            PAYLOAD_INDEX_0, CameraModule::ShutterSpeed::SHUTTER_SPEED_1_50);
+            // PAYLOAD_INDEX_0, CameraModule::ShutterSpeed::SHUTTER_SPEED_1_50);
+            // 快门时间改为1/640秒
+            PAYLOAD_INDEX_0, CameraModule::ShutterSpeed::SHUTTER_SPEED_1_640);
         sleep(2);
         break;
       case 'b':

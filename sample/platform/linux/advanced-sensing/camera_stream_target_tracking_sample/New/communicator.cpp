@@ -85,6 +85,10 @@ void Communicator::OPDownloadFileTask(MopPipeline *MO_Pipeline){
                 f << "设置拍照\n";        
                 isStart = 1;               
             } 
+            if (ackData->cmd == CMD_FOCUS) {
+                isFocus = 1;
+                vehicle->mopServer->close((PipelineID)TEST_MO_PIPELINE_ID);
+            }
             // else {
             //     DERROR("起飞命令接收失败！");       
             //     // TODO

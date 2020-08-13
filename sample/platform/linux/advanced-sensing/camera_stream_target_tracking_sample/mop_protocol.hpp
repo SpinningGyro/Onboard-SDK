@@ -16,6 +16,7 @@ typedef enum CmdEnum : uint8_t {
   CMD_PAUSE = 0x66,
   CMD_RESUME = 0x67,
   CMD_STOP = 0x68,
+  CMD_FOCUS = 0x69,
 } CmdEnum;
 
 enum ReqSubCmd : uint8_t {

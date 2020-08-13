@@ -70,7 +70,7 @@ void stream_frame(Streamer &streamer, const cv::Mat &image)
 }
 
 // 初始化推流器
-int startStreamer(Vehicle* vehicle, Streamer &streamer){
+int startStreamer(Vehicle* vehicle, Streamer &streamer) {
 
   int cap_frame_width = 0,cap_frame_height=0,stream_fps=24,bitrate=20000000;
   int ret = 0;
@@ -179,7 +179,7 @@ int checkSetup(Vehicle*   vehicle){
   return 1;
 }
 
-bool run_take_photo(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManagerSyncSample *gim, YoloObjectDetector* bj_yolo_detector){
+bool run_take_photo(Vehicle* vehicle, CameraManagerSyncSample *cam, GimbalManagerSyncSample *gim, YoloObjectDetector* bj_yolo_detector) {
   CameraRGBImage mainImg;
   const char winName[]="My Camera";
   char message1[100];
@@ -215,15 +215,19 @@ bool run_take_photo(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManager
   //   initialGimbalData.yaw = 0;
   // }      
 
-  // 先中心对焦
-  cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);  
-  usleep(1000000); 
+  // 中心点对焦
+  cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);
+  usleep(1 * 1000 * 1000);
 
   // 累积多帧图片的检测结果
   vector<Rect> collect_rois, keep_rois;
-  int accumulated_frame_count = 20;
-  int filter_thresh = (int)(accumulated_frame_count * 0.6);
-  for(int i=0;i<accumulated_frame_count;i++){
+  int accumulated_frame_count = 40;
+
+  // 不做筛选
+  // int filter_thresh = (int)(accumulated_frame_count * 0.6);
+  int filter_thresh = (int)(accumulated_frame_count);
+
+  for(int i=0; i<accumulated_frame_count; i++) {
     vehicle->advancedSensing->getMainCameraImage(mainImg);
     Mat frame(mainImg.height, mainImg.width, CV_8UC3, mainImg.rawData.data(), mainImg.width*3);
     //进行目标检测
@@ -237,36 +241,55 @@ bool run_take_photo(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManager
   keep_rois = do_merge_nms(collect_rois, 0.1, filter_thresh);
   std::cout << "检测到目标数：" << keep_rois.size() << std::endl;
 
-  if(keep_rois.size() == 0){
-    // 先中心对焦
-    cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);  
-    usleep(1000000); 
-    cam->startShootSinglePhotoSyncSample(PAYLOAD_INDEX_0);
-    usleep(100000);
+  // 如果没有检测到目标
+  if(keep_rois.size() == 0) {
+    cam->setZoomSyncSample(PAYLOAD_INDEX_0, 4); // 放大4倍
+    usleep(1 * 1000 * 1000);
+    cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);  // 中心点对焦
+    usleep(3 * 1000 *1000);
+    cam->startShootSinglePhotoSyncSample(PAYLOAD_INDEX_0);  // 拍照
+    usleep(1 * 1000 * 1000);
+    cam->setZoomSyncSample(PAYLOAD_INDEX_0, 2);  // 变回原焦距（两倍）
+    usleep(1 * 1000 * 1000);
+    std::cout << "检测到目标数：0 执行完成";
+    return true;
   }
-  Rect roiCenter;
-  for(int c = 0; c < keep_rois.size(); C++){
 
+  Rect roiCenter;
+  roiCenter.x = 0;
+  roiCenter.y = 0;
+  float lastDistance = 100 * 1000 * 1000;
+  for(auto &kroi:keep_rois) {
+    float idx = kroi.x + kroi.width *0.5 - mainImg.width * 0.5;
+    float idy = kroi.y + kroi.height *0.5 - mainImg.height * 0.5;
+    float currentDistance = pow((pow(idx, 2) + pow(idy, 2)), 0.5);
+    if (currentDistance < lastDistance) {
+      lastDistance = currentDistance;
+      roiCenter = kroi;
+    }
   }
-  for(int c = 0; c < keep_rois.size(); c++){
+  // 只对距中心点最近的单个目标框做动作
+  keep_rois.clear();
+  keep_rois.push_back(roiCenter);
+
+  for(int c = 0; c < keep_rois.size(); c++) {
     if(c > 1)
         break;
     roi = keep_rois[c];
-  //for(auto &roi:keep_rois){        
+   //for(auto &roi:keep_rois) {
     vehicle->advancedSensing->getMainCameraImage(mainImg);
     Mat frame(mainImg.height, mainImg.width, CV_8UC3, mainImg.rawData.data(), mainImg.width*3); 
     
     std::cout << "执行拍照..." << std::endl;
     std::cout << roi.x << " " << roi.y << " " << roi.width << " " << roi.height << endl;
 
-    for(auto &kroi:keep_rois){
-        cv::Rect kroi2(kroi.x - dx, kroi.x + dy, kroi.width, kroi.height); // kroi.y + dy (zhang)
+    for(auto &kroi:keep_rois) {
+        cv::Rect kroi2(kroi.x - dx, kroi.y + dy, kroi.width, kroi.height); // kroi.y + dy (zhang)
         cv::rectangle(frame, kroi, cv::Scalar(0,0,255), 1, 8, 0 );
     }
 
     cv::circle(frame, Point(mainImg.width/2, mainImg.height/2), 5, cv::Scalar(255,0,0), 2, 8);
-    if(roi.width != 0)
-    {
+    if(roi.width != 0) {
       cv::circle(frame, Point(roi.x + roi.width/2, roi.y + roi.height/2), 3, cv::Scalar(0,0,255), 1, 8);
 
       cv::line(frame,  Point(mainImg.width/2, mainImg.height/2),
@@ -277,13 +300,23 @@ bool run_take_photo(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManager
     cvtColor(frame, frame, COLOR_RGB2BGR);
     
     // send gimbal speed command
-    dx = (int)(roi.x + roi.width/2  - mainImg.width/2);
-    dy = (int)(roi.y + roi.height/2 - mainImg.height/2);
+    dx = (int)(roi.x + roi.width / 2.  - mainImg.width / 2.);
+    dy = (int)(roi.y + roi.height / 2. - mainImg.height / 2.);
     sprintf(message1,"dx=%04d, dy=%04d",dx, dy);
-    putText(frame, message1, Point2f(20,30), FONT_HERSHEY_SIMPLEX, 1,  Scalar(0,255,0));
-    putText(frame, message2, Point2f(20,60), FONT_HERSHEY_SIMPLEX, 1,  Scalar(0,255,0));
+    putText(frame, message1, Point2f(20, 30), FONT_HERSHEY_SIMPLEX, 1,  Scalar(0,255,0));
+    putText(frame, message2, Point2f(20, 60), FONT_HERSHEY_SIMPLEX, 1,  Scalar(0,255,0));
     cv::imshow(winName, frame);
     cv::waitKey(1);
+
+    int ratio_x = round(2 * 0.6 * mainImg.width / roi.width);
+    int ratio_y = round(2 * 0.6 * mainImg.height / roi.height);
+    int ratio = 4;
+    if (ratio_x > ratio_y){
+      ratio = ratio_y;
+    }
+    else{
+      ratio = ratio_x;
+    }
 
     // send gimbal speed command
 
@@ -308,7 +341,7 @@ bool run_take_photo(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManager
 
     vehicle->gimbal->setSpeed(&gimbalSpeed);
 
-    usleep(500000);
+    usleep(1 * 1000 * 1000);
 
     // float w_scale =  (mainImg.width - roi.width) / (mainImg.width + 500) * 50;
     // float h_scale =  (mainImg.width - roi.height) / (mainImg.height + 500) * 50;
@@ -323,14 +356,15 @@ bool run_take_photo(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManager
     //   scale = 2;
     // }
     // cam->setZoomSyncSample(PAYLOAD_INDEX_0, 10);
-    cam->setZoomSyncSample(PAYLOAD_INDEX_0, 5);
-    
-    sleep(2);
+    cam->setZoomSyncSample(PAYLOAD_INDEX_0, ratio); // 相机放大至目标框占屏幕60%
+    usleep(1 * 1000 * 1000);
     cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);
-    usleep(100000);
+    usleep(3 * 1000 * 1000);
     cam->startShootSinglePhotoSyncSample(PAYLOAD_INDEX_0);
-    usleep(100000);        
-    
+    usleep(1 * 1000 * 1000);
+    cam->setZoomSyncSample(PAYLOAD_INDEX_0, 2);  // 相机回到原焦距
+    usleep(1 * 1000 * 1000);
+    // 云台转回初始位置
     GimbalModule::Rotation rotation;
     rotation.roll = 0.0f;
     rotation.pitch = initialGimbalData.pitch;
@@ -338,18 +372,33 @@ bool run_take_photo(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManager
     rotation.rotationMode = 0;
     rotation.time = 0.5;
     gim->rotateSyncSample(PAYLOAD_INDEX_0, rotation);
-    usleep(500000);
-    cam->setZoomSyncSample(PAYLOAD_INDEX_0, 2);
-    sleep(1);
+    usleep(1 * 1000 * 1000);
   }
-  //cam->setZoomSyncSample(PAYLOAD_INDEX_0, 2); 
+  // cam->setZoomSyncSample(PAYLOAD_INDEX_0, 2);
+  return true;
+}
+
+// 如果是绝缘子本体，不做检测，只放大
+bool run_focus(Vehicle* vehicle, CameraManagerSyncSample *cam, GimbalManagerSyncSample *gim) {
+  cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);  // 中心点对焦
+  usleep(1 * 1000 * 1000);
+  cam->setZoomSyncSample(PAYLOAD_INDEX_0, 4); // 放大4倍
+  usleep(1 * 1000 * 1000);
+  cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);  // 中心点对焦
+  usleep(3 * 1000 *1000);
+  cam->startShootSinglePhotoSyncSample(PAYLOAD_INDEX_0);  // 拍照
+  usleep(1 * 1000 * 1000);
+  cam->setZoomSyncSample(PAYLOAD_INDEX_0, 2);  // 变回原焦距（两倍）
+  usleep(1 * 1000 * 1000);
+  std::cout << "绝缘子本体，执行完成";
   return true;
 }
 
 float last_h = 720;
 
-bool run_ddx(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManagerSyncSample *gim, YoloObjectDetector* dx_yolo_detector){
-  CameraRGBImage mainImg; 
+// 导地线巡检
+bool run_ddx(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManagerSyncSample *gim, YoloObjectDetector* dx_yolo_detector) {
+  CameraRGBImage mainImg;
   int count = 0;
   int dx = 0;
   int dy = 0;
@@ -364,37 +413,55 @@ bool run_ddx(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManagerSyncSam
     DSTATUS("Current gimbal %d angle (p,r,y) = (%0.2f°, %0.2f°, %0.2f°)", PAYLOAD_INDEX_0,
             initialGimbalData.pitch,
             initialGimbalData.roll,
-            initialGimbalData.yaw); 
+            initialGimbalData.yaw);
 
-  // 先中心对焦
-//  cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);  
-//  usleep(100000); 
+  // // 中心对焦
+  // cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);  
+  // usleep(1 * 1000 * 1000);
   
   vehicle->advancedSensing->getMainCameraImage(mainImg);
-  Mat frame(mainImg.height, mainImg.width, CV_8UC3, mainImg.rawData.data(), mainImg.width*3); 
+  Mat frame(mainImg.height, mainImg.width, CV_8UC3, mainImg.rawData.data(), mainImg.width*3);
   //进行目标检测
   vector<Rect> rois = dx_yolo_detector->detect_bboxes(frame,frame,0.2);
   cv::imshow("winName",frame);
-  cv::waitKey(1);  
+  cv::waitKey(1);
 
-  if(rois.size() > 0){
+  // H20相机视频像素为3840*2160或1920*1080，原720可能有误
+  if (last_h ==720) {
+   last_h = mainImg.height * 0.5;
+  }
+  
+  if(rois.size() > 0) {
     Rect min_roi;
-    float min_dist = 1000000;
-    for(int k=0; k < rois.size(); k++){
-      float ds = (rois[k].y + rois[k].height)/2.;
-      if(abs(ds-last_h) < min_dist){
-        min_dist = ds;
+
+    // // 取最下面的目标框
+    // float min_dist = -1.0;
+    // for(int k=0; k < rois.size(); k++) {
+    //   float ds = rois[k].y + rois[k].height * 0.5;
+    //   if(ds > min_dist) {
+    //     min_dist = ds;
+    //     min_roi = rois[k];
+    //   }
+    // }
+
+    // 取离上一帧最近的框
+    float min_dist = 1000 * 1000 * 1000;
+    for(int k=0; k < rois.size(); k++) {
+      float ds = rois[k].y + rois[k].height * 0.5;
+      if(abs(ds - last_h) < min_dist) {
+        min_dist = abs(ds - last_h);
         min_roi = rois[k];
       }
     }
+
     vehicle->advancedSensing->getMainCameraImage(mainImg);
-    Mat frame(mainImg.height, mainImg.width, CV_8UC3, mainImg.rawData.data(), mainImg.width*3);    
+    Mat frame(mainImg.height, mainImg.width, CV_8UC3, mainImg.rawData.data(), mainImg.width*3);
     // roi = rois[0];
     roi = min_roi;
-    last_h = (roi.y + roi.height)/2.;
+    last_h = roi.y + roi.height / 2.;
     // send gimbal speed command
-    dx = (int)(roi.x + roi.width/2  - mainImg.width/2);
-    dy = (int)(roi.y + roi.height/2 - mainImg.height/2);
+    dx = (int)(roi.x + roi.width / 2.  - mainImg.width / 2.);
+    dy = (int)(roi.y + roi.height / 2. - mainImg.height / 2.);
     yawRate   = dx;
     pitchRate = -dy;
 
@@ -416,15 +483,16 @@ bool run_ddx(Vehicle* vehicle,CameraManagerSyncSample *cam, GimbalManagerSyncSam
 
     vehicle->gimbal->setSpeed(&gimbalSpeed);
 
-    usleep(100000);
+    usleep(0.5 * 1000 * 1000);
 
   }
-  cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);
-  usleep(500000);
+  // cam->setFocusPointSyncSample(PAYLOAD_INDEX_0, 0.5, 0.5);
+  // usleep(1 * 1000 * 1000);
   cam->startShootSinglePhotoSyncSample(PAYLOAD_INDEX_0);
-  usleep(500000);
+  usleep(0.5 * 1000 * 1000);
   return true;
 }
+
 int main(int argc, char** argv)
 {
   //初始化部件检测器
@@ -492,12 +560,15 @@ int main(int argc, char** argv)
   {    
     // comm.isStart = 1;
     // comm.isResume = 1;
-    if(vehicle->advancedSensing->newMainCameraImageReady() && comm.isStart==1)
-    {
+    if(vehicle->advancedSensing->newMainCameraImageReady() && comm.isStart==1) {
       run_take_photo(vehicle, cam, gim, bj_yolo_detector);
       comm.isStart = 0;
     }
-    if(vehicle->advancedSensing->newMainCameraImageReady() && comm.isResume == 1){
+    if(vehicle->advancedSensing->newMainCameraImageReady() && comm.isFocus==1) {
+      run_focus(vehicle, cam, gim);
+      comm.isFocus = 0;
+    }
+    if(vehicle->advancedSensing->newMainCameraImageReady() && comm.isResume == 1) {
       if(comm.isStop==1){
         comm.isResume = 0;
         comm.isStop = 0;

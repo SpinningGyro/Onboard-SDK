@@ -21,6 +21,7 @@ public:
     int isPause;
     int isResume;
     int isStop;
+    int isFocus;
 
     Communicator(Vehicle *vehicle);
     ~Communicator();

@@ -140,7 +140,11 @@ void Communicator::OPDownloadFileTask(){
             f << "设置拍照\n";        
             isStart = 1;
             vehicle->mopServer->close((PipelineID)TEST_MO_PIPELINE_ID);               
-        } 
+        }
+        if (ackData->cmd == CMD_FOCUS) {
+            isFocus = 1;
+            vehicle->mopServer->close((PipelineID)TEST_MO_PIPELINE_ID);               
+        }
         // else {
         //     DERROR("起飞命令接收失败！");       
         //     // TODO
@@ -167,7 +171,7 @@ void Communicator::OPDownloadFileTask(){
         if (ackData->cmd == CMD_STOP) {            
             isStop = 1;                    
             uploadState = RECV_FILE_INFO_DATA;
-        } 
+        }
         // else {
         //     DERROR("继续命令接收失败！");       
         //     // TODO

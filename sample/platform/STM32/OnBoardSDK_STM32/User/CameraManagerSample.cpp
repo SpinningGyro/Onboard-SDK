@@ -50,7 +50,8 @@ void callbackToSetShutterSpeed(ErrorCode::ErrorCodeType retCode,
     CameraManagerAsyncSample *p = (CameraManagerAsyncSample *)userData;
     if (p)
       p->setShutterSpeedAsyncSample(
-          PAYLOAD_INDEX_0, CameraModule::SHUTTER_SPEED_1_50,
+          // PAYLOAD_INDEX_0, CameraModule::SHUTTER_SPEED_1_50,
+          PAYLOAD_INDEX_0, CameraModule::SHUTTER_SPEED_1_640,
           asyncSampleCallBack, (UserData) "Set exposure mode");
   } else {
     DERROR("Set exposure mode failure, Error code : 0x%lX", retCode);
