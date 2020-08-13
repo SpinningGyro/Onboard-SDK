@@ -135,15 +135,14 @@ void Communicator::OPDownloadFileTask(){
         // std::cout << "ackData->subcmd: " << ackData->subcmd << std::endl;
         // std::cout << "ackData->cmd == CMD_FLY: " <<  CMD_FLY << std::endl;
 
-        if (ackData->cmd == CMD_FLY) {   
+        if (ackData->cmd == CMD_FLY) {
             std::cout << "设置拍照\n" << std::endl; 
             f << "设置拍照\n";        
             isStart = 1;
-            vehicle->mopServer->close((PipelineID)TEST_MO_PIPELINE_ID);               
+            // vehicle->mopServer->close((PipelineID)TEST_MO_PIPELINE_ID);
         }
         if (ackData->cmd == CMD_FOCUS) {
             isFocus = 1;
-            vehicle->mopServer->close((PipelineID)TEST_MO_PIPELINE_ID);               
         }
         // else {
         //     DERROR("起飞命令接收失败！");       
