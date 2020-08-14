@@ -97,7 +97,7 @@ void Communicator::OPDownloadFileTask(){
             mop_destroy_channel(pipelineMap[id]);
             vehicle->mopServer->close(id);
             delete pipelineMap[id];
-            pipelineMap.erase(id); 
+            pipelineMap.erase(id);
             /*! 1.Create handler for binding */
             DSTATUS("/*! 1.Create handler for binding */");
             ret = mop_create_channel(&bind_handle, (mop_trans_t)pip_type);
@@ -136,7 +136,7 @@ void Communicator::OPDownloadFileTask(){
         // std::cout << "ackData->cmd == CMD_FLY: " <<  CMD_FLY << std::endl;
 
         if (ackData->cmd == CMD_FLY) {
-            std::cout << "设置拍照\n" << std::endl; 
+            std::cout << "设置拍照\n" << std::endl;
             f << "设置拍照\n";        
             isStart = 1;
             // vehicle->mopServer->close((PipelineID)TEST_MO_PIPELINE_ID);

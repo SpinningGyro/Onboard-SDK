@@ -15,25 +15,25 @@ void *runMop(void *args);
 
 class Communicator {
 
-public:
-    int isUpload;
-    int isStart;
-    int isPause;
-    int isResume;
-    int isStop;
-    int isFocus;
+    public:
+        int isUpload;
+        int isStart;
+        int isPause;
+        int isResume;
+        int isStop;
+        int isFocus;
 
-    Communicator(Vehicle *vehicle);
-    ~Communicator();
-    void* MopClientTask();
-    void* Sendmessege();
-    void OPDownloadFileTask();
-    int threadRun();
-    bool sendMessage(std::string messages);
+        Communicator(Vehicle *vehicle);
+        ~Communicator();
+        void* MopClientTask();
+        void* Sendmessege();
+        void OPDownloadFileTask();
+        int threadRun();
+        bool sendMessage(std::string messages);
 
-private:
-    Vehicle *vehicle;
-    MopPipeline *MO_Pipeline;
+    private:
+        Vehicle *vehicle;
+        MopPipeline *MO_Pipeline;
 
 };
 
